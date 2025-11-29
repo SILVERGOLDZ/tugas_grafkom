@@ -480,9 +480,6 @@ PrefabInstance:
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 97efea99edb7f634c9fa25bb19b35e6c, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 736583097}
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 97efea99edb7f634c9fa25bb19b35e6c, type: 3}
-      insertIndex: -1
       addedObject: {fileID: 736583098}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 97efea99edb7f634c9fa25bb19b35e6c, type: 3}
       insertIndex: -1
@@ -501,19 +498,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 97efea99edb7f634c9fa25bb19b35e6c, type: 3}
   m_PrefabInstance: {fileID: 664397289}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &736583097
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 736583095}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: daa002222950ff4488213feb788a5c49, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::NPCInteract
-  npcCamera: {fileID: 1886266203}
 --- !u!65 &736583098
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -945,9 +929,6 @@ PrefabInstance:
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 6a57ac051617b2e4b85787bbe0bdaa36, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 2001264375}
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 6a57ac051617b2e4b85787bbe0bdaa36, type: 3}
-      insertIndex: -1
       addedObject: {fileID: 2001264376}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 6a57ac051617b2e4b85787bbe0bdaa36, type: 3}
       insertIndex: -1
@@ -1160,19 +1141,6 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 6a57ac051617b2e4b85787bbe0bdaa36, type: 3}
   m_PrefabInstance: {fileID: 1388122011}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &2001264375
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2001264374}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: daa002222950ff4488213feb788a5c49, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: '::'
-  npcCamera: {fileID: 2110071412}
 --- !u!65 &2001264376
 BoxCollider:
   m_ObjectHideFlags: 0
