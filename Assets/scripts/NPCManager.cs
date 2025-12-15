@@ -31,11 +31,11 @@ public class CharacterSpawnManager : MonoBehaviour
         {
             case DayCycleManager.TimeOfDay.Morning:
                 alice?.Appear();
+                hikari?.Appear();
                 break;
 
             case DayCycleManager.TimeOfDay.Noon:
                 nozomi?.Appear();
-                hikari?.Appear();
                 break;
 
             case DayCycleManager.TimeOfDay.Evening:

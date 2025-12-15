@@ -7,11 +7,15 @@ public class PlayerMovement : MonoBehaviour
     public float gravity = -9.81f;
     public float jumpHeight = 3f;
 
+    public bool canMove = true;
+
     private float yVelocity = 0f;
     private bool isGrounded = true;
 
     void Update()
     {
+        if (!canMove) return;
+
         // --- INPUT ---
         float x = Input.GetAxisRaw("Horizontal");  // A/D or Left/Right Arrow
         float z = Input.GetAxisRaw("Vertical");    // W/S or Up/Down Arrow
