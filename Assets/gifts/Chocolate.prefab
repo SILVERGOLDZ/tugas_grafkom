@@ -62,7 +62,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 4a0b030af2965f5489571431133e02c4, type: 3}
       propertyPath: m_Name
-      value: Hershey's Chocolate Bar Unwrapped
+      value: Chocolate
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 4a0b030af2965f5489571431133e02c4, type: 3}
       propertyPath: m_TagString
@@ -117,3 +117,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d673eb292e3c8314ca087f373e3ccc59, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Gift
+  giftType: 1
+  spawnSpeed: 2
+  rotateSpeed: 90
+  collectSpeed: 5

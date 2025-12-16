@@ -1,8 +1,16 @@
 using UnityEngine;
 using System.Collections;
 
+public enum GiftType
+{
+    Rose,
+    Chocolate,
+    Sundae
+}
+
 public class Gift : MonoBehaviour
 {
+    public GiftType giftType;
     public float spawnSpeed = 2f;
     public float rotateSpeed = 90f;
     public float collectSpeed = 5f;
@@ -66,10 +74,10 @@ public class Gift : MonoBehaviour
         if (collected) return;
         if (!other.CompareTag("Player")) return;
 
-        PlayerInventory inventory = other.GetComponent<PlayerInventory>();
+        PlayerGiftInventory inventory = other.GetComponent<PlayerGiftInventory>();
         if (inventory == null) return;
 
-        inventory.AddGift();
+        inventory.AddGift(giftType, 1);
         collected = true;
     }
 }

@@ -107,3 +107,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d673eb292e3c8314ca087f373e3ccc59, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Gift
+  giftType: 2
+  spawnSpeed: 2
+  rotateSpeed: 90
+  collectSpeed: 5
