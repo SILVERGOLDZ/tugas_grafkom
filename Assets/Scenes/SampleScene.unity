@@ -3018,6 +3018,14 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 4167280743394806330, guid: 6a57ac051617b2e4b85787bbe0bdaa36, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8879528566716807029, guid: 6a57ac051617b2e4b85787bbe0bdaa36, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
     - {fileID: -7802924456157763191, guid: 6a57ac051617b2e4b85787bbe0bdaa36, type: 3}
@@ -4030,7 +4038,6 @@ MonoBehaviour:
   mcCamera: {fileID: 330585545}
   npcCamera: {fileID: 2110071412}
   playerMovement: {fileID: 913131490}
-  playerModel: {fileID: 913131487}
   cameraTransitionSpeed: 3
   spawnManager: {fileID: 0}
 --- !u!1 &2005547474

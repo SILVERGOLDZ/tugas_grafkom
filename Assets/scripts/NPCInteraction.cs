@@ -10,20 +10,36 @@ public class NPCInteraction : MonoBehaviour
     public Camera npcCamera;
 
     public PlayerMovement playerMovement;
-    public GameObject playerModel; // mesh MC saja
 
-    public float cameraTransitionSpeed = 3f;
+    public float cameraTransitionSpeed = 5f; // slightly faster feels better
 
     private bool playerNearby;
     private bool inDialogue;
     private bool transitioning;
-    private Camera activeFromCam;
-    private Camera activeToCam;
+
+    private Vector3 transitionStartPos;
+    private Quaternion transitionStartRot;
+    private Vector3 transitionTargetPos;
+    private Quaternion transitionTargetRot;
     private float transitionProgress;
+
     private Renderer[] playerRenderers;
 
-    // Reference to the shared manager (assign in Inspector or find it)
+    // These are the **original local** offsets you set in the editor — never change
+    private Vector3 npcCameraLocalPos;
+    private Quaternion npcCameraLocalRot;
+
     public CharacterSpawnManager spawnManager;
+
+    void Awake()
+    {
+        // Cache ONCE, in Awake — before anything moves
+        npcCameraLocalPos = npcCamera.transform.localPosition;
+        npcCameraLocalRot = npcCamera.transform.localRotation;
+
+        // Optional: make sure NPC camera is disabled from the start
+        npcCamera.gameObject.SetActive(false);
+    }
 
     void Start()
     {
@@ -31,12 +47,8 @@ public class NPCInteraction : MonoBehaviour
         dialoguePanel.SetActive(false);
         comingSoonPopup.SetActive(false);
 
-        npcCamera.gameObject.SetActive(false);
-
-        // Ambil SEMUA renderer player (Mesh + Skinned)
         playerRenderers = playerMovement.GetComponentsInChildren<Renderer>();
 
-        // If not assigned in Inspector, find it automatically
         if (spawnManager == null)
             spawnManager = FindObjectOfType<CharacterSpawnManager>();
     }
@@ -48,6 +60,18 @@ public class NPCInteraction : MonoBehaviour
             StartDialogue();
         }
 
+        if (inDialogue && !transitioning)
+        {
+            if (Input.GetKeyDown(KeyCode.E))
+            {
+                OnLeave();
+            }
+            if (Input.GetKeyDown(KeyCode.Q))
+            {
+                OnGiveGift();
+            }
+        }
+
         if (transitioning)
         {
             CameraTransition();
@@ -57,9 +81,7 @@ public class NPCInteraction : MonoBehaviour
     void SetPlayerVisible(bool visible)
     {
         foreach (Renderer r in playerRenderers)
-        {
             r.enabled = visible;
-        }
     }
 
     void StartDialogue()
@@ -70,17 +92,27 @@ public class NPCInteraction : MonoBehaviour
         playerMovement.canMove = false;
         SetPlayerVisible(false);
 
-        activeFromCam = mcCamera;
-        activeToCam = npcCamera;
+        // Calculate correct target = original local offset applied to current NPC position
+        Transform npcParent = npcCamera.transform.parent;
+        transitionTargetPos = npcParent.TransformPoint(npcCameraLocalPos);
+        transitionTargetRot = npcParent.rotation * npcCameraLocalRot;
 
+        // Start from player's current view
+        transitionStartPos = mcCamera.transform.position;
+        transitionStartRot = mcCamera.transform.rotation;
+
+        // Snap NPC camera to player view and enable it
+        npcCamera.transform.position = transitionStartPos;
+        npcCamera.transform.rotation = transitionStartRot;
         npcCamera.gameObject.SetActive(true);
+        mcCamera.gameObject.SetActive(false);
+
         transitionProgress = 0f;
         transitioning = true;
 
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
 
-        // Disable NPC spawn/despawn changes during dialogue
         CharacterSpawnManager.EnterDialogue();
     }
 
@@ -89,8 +121,11 @@ public class NPCInteraction : MonoBehaviour
         dialoguePanel.SetActive(false);
         comingSoonPopup.SetActive(false);
 
-        activeFromCam = npcCamera;
-        activeToCam = mcCamera;
+        // Now transition NPC camera back to player's current view
+        transitionStartPos = npcCamera.transform.position;
+        transitionStartRot = npcCamera.transform.rotation;
+        transitionTargetPos = mcCamera.transform.position;
+        transitionTargetRot = mcCamera.transform.rotation;
 
         transitionProgress = 0f;
         transitioning = true;
@@ -103,7 +138,6 @@ public class NPCInteraction : MonoBehaviour
 
         inDialogue = false;
 
-        // Re-enable NPC spawn/despawn changes
         CharacterSpawnManager.ExitDialogue();
     }
 
@@ -111,25 +145,22 @@ public class NPCInteraction : MonoBehaviour
     {
         transitionProgress += Time.deltaTime * cameraTransitionSpeed;
 
-        activeFromCam.transform.position = Vector3.Lerp(
-            activeFromCam.transform.position,
-            activeToCam.transform.position,
-            transitionProgress
-        );
-
-        activeFromCam.transform.rotation = Quaternion.Slerp(
-            activeFromCam.transform.rotation,
-            activeToCam.transform.rotation,
-            transitionProgress
-        );
+        npcCamera.transform.position = Vector3.Lerp(transitionStartPos, transitionTargetPos, transitionProgress);
+        npcCamera.transform.rotation = Quaternion.Slerp(transitionStartRot, transitionTargetRot, transitionProgress);
 
         if (transitionProgress >= 1f)
         {
             transitioning = false;
-            activeFromCam.gameObject.SetActive(false);
 
-            if (activeToCam == npcCamera)
+            if (inDialogue)
+            {
                 dialoguePanel.SetActive(true);
+            }
+            else
+            {
+                npcCamera.gameObject.SetActive(false);
+                mcCamera.gameObject.SetActive(true);
+            }
         }
     }
 
@@ -151,14 +182,6 @@ public class NPCInteraction : MonoBehaviour
         }
     }
 
-    // ===== UI BUTTON =====
-    public void OnGiveGift()
-    {
-        comingSoonPopup.SetActive(true);
-    }
-
-    public void OnLeave()
-    {
-        EndDialogue();
-    }
+    public void OnGiveGift() => comingSoonPopup.SetActive(true);
+    public void OnLeave() => EndDialogue();
 }
