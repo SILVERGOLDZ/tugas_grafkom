@@ -22,6 +22,9 @@ public class NPCInteraction : MonoBehaviour
     private float transitionProgress;
     private Renderer[] playerRenderers;
 
+    // Reference to the shared manager (assign in Inspector or find it)
+    public CharacterSpawnManager spawnManager;
+
     void Start()
     {
         pressFPopup.SetActive(false);
@@ -32,6 +35,10 @@ public class NPCInteraction : MonoBehaviour
 
         // Ambil SEMUA renderer player (Mesh + Skinned)
         playerRenderers = playerMovement.GetComponentsInChildren<Renderer>();
+
+        // If not assigned in Inspector, find it automatically
+        if (spawnManager == null)
+            spawnManager = FindObjectOfType<CharacterSpawnManager>();
     }
 
     void Update()
@@ -55,7 +62,6 @@ public class NPCInteraction : MonoBehaviour
         }
     }
 
-
     void StartDialogue()
     {
         inDialogue = true;
@@ -73,6 +79,9 @@ public class NPCInteraction : MonoBehaviour
 
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+
+        // Disable NPC spawn/despawn changes during dialogue
+        CharacterSpawnManager.EnterDialogue();
     }
 
     void EndDialogue()
@@ -93,6 +102,9 @@ public class NPCInteraction : MonoBehaviour
         Cursor.visible = false;
 
         inDialogue = false;
+
+        // Re-enable NPC spawn/despawn changes
+        CharacterSpawnManager.ExitDialogue();
     }
 
     void CameraTransition()
