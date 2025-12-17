@@ -6,7 +6,7 @@ public class NPCInteraction : MonoBehaviour
     [Header("UI References")]
     public GameObject pressFPopup;
     public GameObject dialoguePanel;
-    public GameObject giftSelectionPanel; // Hanya ini yang digunakan
+    public GameObject giftSelectionPanel;
 
     [Header("Camera References")]
     public Camera mcCamera;
@@ -28,6 +28,12 @@ public class NPCInteraction : MonoBehaviour
     public Text chocolateTextUI;
     public Text sundaeTextUI;
 
+    [Header("NPC Appearance Settings - PENTING!")]
+    public bool appearsInMorning = false;
+    public bool appearsInNoon = false;
+    public bool appearsInEvening = false;
+    public bool appearsInNight = false;
+
     [Header("Settings")]
     public float cameraTransitionSpeed = 5f;
 
@@ -36,6 +42,7 @@ public class NPCInteraction : MonoBehaviour
     private bool inDialogue;
     private bool transitioning;
     private bool givingGift;
+    private bool isNPCEnabled = false; // Default false
 
     private Vector3 transitionStartPos;
     private Quaternion transitionStartRot;
@@ -50,8 +57,22 @@ public class NPCInteraction : MonoBehaviour
     private float giftTimer;
     private GameObject currentGift;
 
+    // Reference ke DayCycleManager
+    private DayCycleManager dayCycle;
+    private Collider npcCollider;
+    private CharacterAppear characterAppear;
+
     void Awake()
     {
+        // Dapatkan semua komponen
+        npcCollider = GetComponent<Collider>();
+        if (npcCollider == null)
+            npcCollider = GetComponentInChildren<Collider>();
+
+        characterAppear = GetComponent<CharacterAppear>();
+        if (characterAppear == null)
+            characterAppear = GetComponentInChildren<CharacterAppear>();
+
         if (npcCamera != null)
         {
             npcCameraLocalPos = npcCamera.transform.localPosition;
@@ -62,27 +83,193 @@ public class NPCInteraction : MonoBehaviour
 
     void Start()
     {
-        // Non-aktifkan SEMUA UI di awal
-        if (pressFPopup != null)
-            pressFPopup.SetActive(false);
 
-        if (dialoguePanel != null)
-            dialoguePanel.SetActive(false);
+        // Dapatkan DayCycleManager
+        dayCycle = FindObjectOfType<DayCycleManager>();
+        if (dayCycle != null)
+        {
+            dayCycle.OnTimeChanged += OnTimeChanged;
+            // Cek status awal - PASTIKAN ini dipanggil
+            UpdateNPCState(dayCycle.currentTime, true);
+        }
+        else
+        {
+            Debug.LogError("DayCycleManager not found!");
+        }
 
-        if (giftSelectionPanel != null)
-            giftSelectionPanel.SetActive(false);
+        // PASTIKAN semua UI nonaktif di awal
+        ForceDisableAllUI();
+
+        // Reset state
+        playerNearby = false;
+        inDialogue = false;
+        transitioning = false;
+        givingGift = false;
+
+        // Pastikan mcCamera aktif
+        if (mcCamera != null)
+        {
+            mcCamera.gameObject.SetActive(true);
+        }
 
         if (playerMovement != null)
+        {
             playerRenderers = playerMovement.GetComponentsInChildren<Renderer>();
+            playerMovement.canMove = true;
+        }
+
+    }
+
+    void ForceDisableAllUI()
+    {
+        if (pressFPopup != null)
+        {
+            pressFPopup.SetActive(false);
+        }
+
+        if (dialoguePanel != null)
+        {
+            dialoguePanel.SetActive(false);
+        }
+
+        if (giftSelectionPanel != null)
+        {
+            giftSelectionPanel.SetActive(false);
+        }
+    }
+
+    // Dipanggil saat waktu berubah
+    void OnTimeChanged(DayCycleManager.TimeOfDay time)
+    {
+        UpdateNPCState(time, false);
+    }
+
+    void UpdateNPCState(DayCycleManager.TimeOfDay currentTime, bool isStart = false)
+    {
+        // DEBUG DETAILED
+
+        bool shouldBeEnabled = currentTime switch
+        {
+            DayCycleManager.TimeOfDay.Morning => appearsInMorning,
+            DayCycleManager.TimeOfDay.Noon => appearsInNoon,
+            DayCycleManager.TimeOfDay.Evening => appearsInEvening,
+            DayCycleManager.TimeOfDay.Night => appearsInNight,
+            _ => false
+        };
+
+
+        // Jika status berubah ATAU ini adalah start pertama
+        if (isNPCEnabled != shouldBeEnabled || isStart)
+        {
+            bool wasEnabled = isNPCEnabled;
+            isNPCEnabled = shouldBeEnabled;
+
+            // Kontrol collider
+            if (npcCollider != null)
+            {
+                npcCollider.enabled = shouldBeEnabled;
+            }
+
+            // Jika NPC dinonaktifkan
+            if (!shouldBeEnabled)
+            {
+                // Force reset semua state
+                playerNearby = false;
+
+                // Nonaktifkan SEMUA UI
+                ForceDisableAllUI();
+
+                // Jika sedang dalam dialog, paksa keluar
+                if (inDialogue || transitioning || givingGift)
+                {
+                    ForceEndDialogue();
+                }
+
+                // Nonaktifkan gameobject jika ada CharacterAppear
+                if (characterAppear != null && !characterAppear.enabled)
+                {
+                    gameObject.SetActive(false);
+                }
+            }
+            else // Jika NPC diaktifkan
+            {
+                // Aktifkan gameobject jika perlu
+                if (characterAppear != null)
+                {
+                    gameObject.SetActive(true);
+                }
+            }
+        }
+    }
+
+    void ForceEndDialogue()
+    {
+        // Reset semua state
+        inDialogue = false;
+        givingGift = false;
+        transitioning = false;
+        playerNearby = false;
+
+        // Nonaktifkan semua UI
+        ForceDisableAllUI();
+
+        // Kamera
+        if (npcCamera != null && npcCamera.gameObject.activeSelf)
+        {
+            npcCamera.gameObject.SetActive(false);
+        }
+
+        if (mcCamera != null && !mcCamera.gameObject.activeSelf)
+        {
+            mcCamera.gameObject.SetActive(true);
+        }
+
+        // Player
+        if (playerMovement != null)
+        {
+            playerMovement.canMove = true;
+            SetPlayerVisible(true);
+        }
+
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
     }
 
     void Update()
     {
+        if (!isNPCEnabled)
+        {
+            // Safety: pastikan UI nonaktif
+            if ((pressFPopup != null && pressFPopup.activeSelf) ||
+                (dialoguePanel != null && dialoguePanel.activeSelf) ||
+                (giftSelectionPanel != null && giftSelectionPanel.activeSelf))
+            {
+                ForceDisableAllUI();
+            }
+            return;
+        }
+
+        // Safety check: jika kamera NPC aktif tapi tidak dalam dialog
+        if (!inDialogue && !transitioning)
+        {
+            if (npcCamera != null && npcCamera.gameObject.activeSelf)
+            {
+                npcCamera.gameObject.SetActive(false);
+            }
+
+            if (mcCamera != null && !mcCamera.gameObject.activeSelf)
+            {
+                mcCamera.gameObject.SetActive(true);
+            }
+        }
+
+        // Input untuk mulai dialog
         if (playerNearby && !inDialogue && Input.GetKeyDown(KeyCode.F))
         {
             StartDialogue();
         }
 
+        // Input dalam dialog
         if (inDialogue && !transitioning && !givingGift)
         {
             if (Input.GetKeyDown(KeyCode.E))
@@ -95,17 +282,19 @@ public class NPCInteraction : MonoBehaviour
             }
         }
 
+        // Camera transition
         if (transitioning)
         {
             CameraTransition();
         }
 
+        // Gift sequence
         if (givingGift)
         {
             HandleGiftSequence();
         }
 
-        // Handle gift selection input (1,2,3)
+        // Gift selection input
         if (giftSelectionPanel != null && giftSelectionPanel.activeSelf)
         {
             if (Input.GetKeyDown(KeyCode.Alpha1))
@@ -116,7 +305,6 @@ public class NPCInteraction : MonoBehaviour
                 TryGiveGift(GiftType.Sundae);
             else if (Input.GetKeyDown(KeyCode.Escape))
             {
-                // Kembali ke dialog
                 giftSelectionPanel.SetActive(false);
                 if (dialoguePanel != null)
                     dialoguePanel.SetActive(true);
@@ -126,6 +314,8 @@ public class NPCInteraction : MonoBehaviour
 
     public void OnGiveGift()
     {
+        if (!isNPCEnabled) return;
+
         if (givingGift) return;
 
         if (giftSelectionPanel != null)
@@ -261,17 +451,24 @@ public class NPCInteraction : MonoBehaviour
         }
     }
 
+    // ===== FUNGSI DIALOG & KAMERA (TETAP SAMA) =====
+
     void StartDialogue()
     {
+        if (!isNPCEnabled) return;
+
         inDialogue = true;
         if (pressFPopup != null)
             pressFPopup.SetActive(false);
 
         if (playerMovement != null)
+        {
             playerMovement.canMove = false;
+        }
 
         SetPlayerVisible(false);
 
+        // Camera transition setup
         if (npcCamera != null && mcCamera != null)
         {
             Transform npcParent = npcCamera.transform.parent;
@@ -279,19 +476,24 @@ public class NPCInteraction : MonoBehaviour
             {
                 transitionTargetPos = npcParent.TransformPoint(npcCameraLocalPos);
                 transitionTargetRot = npcParent.rotation * npcCameraLocalRot;
-
-                transitionStartPos = mcCamera.transform.position;
-                transitionStartRot = mcCamera.transform.rotation;
-
-                npcCamera.transform.position = transitionStartPos;
-                npcCamera.transform.rotation = transitionStartRot;
-                npcCamera.gameObject.SetActive(true);
-                mcCamera.gameObject.SetActive(false);
             }
-        }
+            else
+            {
+                transitionTargetPos = npcCameraLocalPos;
+                transitionTargetRot = npcCameraLocalRot;
+            }
 
-        transitionProgress = 0f;
-        transitioning = true;
+            transitionStartPos = mcCamera.transform.position;
+            transitionStartRot = mcCamera.transform.rotation;
+
+            npcCamera.transform.position = transitionStartPos;
+            npcCamera.transform.rotation = transitionStartRot;
+            npcCamera.gameObject.SetActive(true);
+            mcCamera.gameObject.SetActive(false);
+
+            transitionProgress = 0f;
+            transitioning = true;
+        }
 
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
@@ -299,12 +501,12 @@ public class NPCInteraction : MonoBehaviour
 
     void EndDialogue()
     {
-        if (dialoguePanel != null)
-            dialoguePanel.SetActive(false);
+        if (!isNPCEnabled) return;
 
-        if (giftSelectionPanel != null)
-            giftSelectionPanel.SetActive(false);
+        if (dialoguePanel != null) dialoguePanel.SetActive(false);
+        if (giftSelectionPanel != null) giftSelectionPanel.SetActive(false);
 
+        // Camera transition back
         if (npcCamera != null && mcCamera != null)
         {
             transitionStartPos = npcCamera.transform.position;
@@ -317,20 +519,22 @@ public class NPCInteraction : MonoBehaviour
         }
 
         if (playerMovement != null)
+        {
             playerMovement.canMove = true;
+        }
 
         SetPlayerVisible(true);
 
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
-
         inDialogue = false;
         givingGift = false;
+
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
     }
 
     void CameraTransition()
     {
-        if (npcCamera == null) return;
+        if (npcCamera == null || mcCamera == null) return;
 
         transitionProgress += Time.deltaTime * cameraTransitionSpeed;
 
@@ -348,11 +552,8 @@ public class NPCInteraction : MonoBehaviour
             }
             else
             {
-                if (npcCamera != null)
-                    npcCamera.gameObject.SetActive(false);
-
-                if (mcCamera != null)
-                    mcCamera.gameObject.SetActive(true);
+                npcCamera.gameObject.SetActive(false);
+                mcCamera.gameObject.SetActive(true);
             }
         }
     }
@@ -367,26 +568,52 @@ public class NPCInteraction : MonoBehaviour
 
     void OnTriggerEnter(Collider other)
     {
+
+        // HANYA respon jika NPC enabled
+        if (!isNPCEnabled)
+        {
+            Debug.Log($"Ignoring trigger - NPC disabled");
+            return;
+        }
+
         if (other.CompareTag("Player"))
         {
             playerNearby = true;
             if (pressFPopup != null)
+            {
                 pressFPopup.SetActive(true);
+                Debug.Log($"Showing pressFPopup for {gameObject.name}");
+            }
         }
     }
 
     void OnTriggerExit(Collider other)
     {
+
+        if (!isNPCEnabled) return;
+
         if (other.CompareTag("Player"))
         {
             playerNearby = false;
             if (pressFPopup != null)
+            {
                 pressFPopup.SetActive(false);
+                Debug.Log($"Hiding pressFPopup for {gameObject.name}");
+            }
+        }
+    }
+
+    void OnDestroy()
+    {
+        if (dayCycle != null)
+        {
+            dayCycle.OnTimeChanged -= OnTimeChanged;
         }
     }
 
     public void OnLeave()
     {
+        if (!isNPCEnabled) return;
         EndDialogue();
     }
 }

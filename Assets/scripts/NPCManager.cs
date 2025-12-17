@@ -26,38 +26,100 @@ public class CharacterSpawnManager : MonoBehaviour
         dayCycle.OnTimeChanged -= HandleTimeChange;
     }
 
+    // Di CharacterSpawnManager.cs, modifikasi HandleTimeChange:
     void HandleTimeChange(DayCycleManager.TimeOfDay time)
     {
+        Debug.Log($"CharacterSpawnManager: Time changed to {time}");
+
         // Only apply changes if no dialogue is active
         if (activeDialogueCount > 0)
+        {
+            Debug.Log($"Dialogue active ({activeDialogueCount}), skipping spawn changes");
             return;
+        }
 
-        // Semua hilangkan dulu
-        alice?.Disappear();
-        nozomi?.Disappear();
-        hikari?.Disappear();
-        miyu?.Disappear();
-        miyako?.Disappear();
+        // Nonaktifkan SEMUA NPC dulu
+        DisableAllNPCs();
 
-        // Lalu munculkan sesuai waktu
+        // Aktifkan sesuai waktu
         switch (time)
         {
             case DayCycleManager.TimeOfDay.Morning:
-                alice?.Appear();
-                hikari?.Appear();
+                SafeAppear(alice);
+                SafeAppear(hikari);
+                Debug.Log("Morning NPCs activated");
                 break;
 
             case DayCycleManager.TimeOfDay.Noon:
-                nozomi?.Appear();
+                SafeAppear(nozomi);
+                Debug.Log("Noon NPCs activated");
                 break;
 
             case DayCycleManager.TimeOfDay.Evening:
-                miyu?.Appear();
+                SafeAppear(miyu);
+                Debug.Log("Evening NPCs activated");
                 break;
 
             case DayCycleManager.TimeOfDay.Night:
-                miyako?.Appear();
+                SafeAppear(miyako);
+                Debug.Log("Night NPCs activated");
                 break;
+        }
+    }
+
+    void DisableAllNPCs()
+    {
+
+        // Nonaktifkan semua CharacterAppear
+        CharacterAppear[] allCharacters = FindObjectsOfType<CharacterAppear>(true);
+        foreach (CharacterAppear character in allCharacters)
+        {
+            if (character != null && character.gameObject.activeSelf)
+            {
+                character.Disappear();
+            }
+        }
+
+        // Nonaktifkan semua NPCInteraction colliders
+        NPCInteraction[] allNPCs = FindObjectsOfType<NPCInteraction>(true);
+        foreach (NPCInteraction npc in allNPCs)
+        {
+            if (npc != null)
+            {
+                Collider col = npc.GetComponent<Collider>();
+                if (col != null) col.enabled = false;
+
+                if (npc.pressFPopup != null)
+                    npc.pressFPopup.SetActive(false);
+            }
+        }
+    }
+
+    void SafeAppear(CharacterAppear character)
+    {
+        if (character == null)
+        {
+            Debug.LogWarning("Tried to appear null character");
+            return;
+        }
+
+        character.Appear();
+
+        // Enable NPCInteraction setelah appear
+        NPCInteraction npcInteraction = character.GetComponent<NPCInteraction>();
+        if (npcInteraction != null)
+        {
+            // Update state NPCInteraction
+            var type = npcInteraction.GetType();
+            var updateMethod = type.GetMethod("UpdateNPCState",
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance);
+
+            if (updateMethod != null)
+            {
+                DayCycleManager dayCycle = FindObjectOfType<DayCycleManager>();
+                updateMethod.Invoke(npcInteraction, new object[] { dayCycle.currentTime, false });
+            }
         }
     }
 
