@@ -3,20 +3,39 @@ using UnityEngine.UI;
 
 public class NPCInteraction : MonoBehaviour
 {
+    [Header("UI References")]
     public GameObject pressFPopup;
     public GameObject dialoguePanel;
-    public GameObject giftSelectionPanel;
+    public GameObject giftSelectionPanel; // Hanya ini yang digunakan
 
+    [Header("Camera References")]
     public Camera mcCamera;
     public Camera npcCamera;
 
+    [Header("Player References")]
     public PlayerMovement playerMovement;
+    public PlayerGiftInventory playerInventory;
+    public NPCAffinity npcAffinity;
 
+    [Header("Gift Visuals")]
+    public Transform giftSpawnPoint;
+    public GameObject rosePrefab;
+    public GameObject chocolatePrefab;
+    public GameObject sundaePrefab;
+
+    [Header("UI Text Elements")]
+    public Text roseTextUI;
+    public Text chocolateTextUI;
+    public Text sundaeTextUI;
+
+    [Header("Settings")]
     public float cameraTransitionSpeed = 5f;
 
+    // Private variables
     private bool playerNearby;
     private bool inDialogue;
     private bool transitioning;
+    private bool givingGift;
 
     private Vector3 transitionStartPos;
     private Quaternion transitionStartRot;
@@ -25,47 +44,36 @@ public class NPCInteraction : MonoBehaviour
     private float transitionProgress;
 
     private Renderer[] playerRenderers;
-
-    // Gift System References
-    public PlayerGiftInventory playerInventory;
-    public NPCAffinity npcAffinity;
-
-    // UI References
-    public Text roseText;
-    public Text chocolateText;
-    public Text sundaeText;
-    public Text affinityText;
-
-    // Gift Visuals
-    public Transform giftSpawnPoint;
-    public GameObject rosePrefab;
-    public GameObject chocolatePrefab;
-    public GameObject sundaePrefab;
-
-    // Gift Giving Sequence
-    private bool givingGift;
-    private float giftTimer;
-    private GameObject currentGift;
-
-    // Camera Original Positions
     private Vector3 npcCameraLocalPos;
     private Quaternion npcCameraLocalRot;
 
+    private float giftTimer;
+    private GameObject currentGift;
+
     void Awake()
     {
-        npcCameraLocalPos = npcCamera.transform.localPosition;
-        npcCameraLocalRot = npcCamera.transform.localRotation;
-        npcCamera.gameObject.SetActive(false);
+        if (npcCamera != null)
+        {
+            npcCameraLocalPos = npcCamera.transform.localPosition;
+            npcCameraLocalRot = npcCamera.transform.localRotation;
+            npcCamera.gameObject.SetActive(false);
+        }
     }
 
     void Start()
     {
-        pressFPopup.SetActive(false);
-        dialoguePanel.SetActive(false);
-        giftSelectionPanel.SetActive(false);
+        // Non-aktifkan SEMUA UI di awal
+        if (pressFPopup != null)
+            pressFPopup.SetActive(false);
 
-        playerRenderers = playerMovement.GetComponentsInChildren<Renderer>();
-        UpdateGiftUI();
+        if (dialoguePanel != null)
+            dialoguePanel.SetActive(false);
+
+        if (giftSelectionPanel != null)
+            giftSelectionPanel.SetActive(false);
+
+        if (playerMovement != null)
+            playerRenderers = playerMovement.GetComponentsInChildren<Renderer>();
     }
 
     void Update()
@@ -75,7 +83,7 @@ public class NPCInteraction : MonoBehaviour
             StartDialogue();
         }
 
-        if (inDialogue && !transitioning)
+        if (inDialogue && !transitioning && !givingGift)
         {
             if (Input.GetKeyDown(KeyCode.E))
             {
@@ -96,135 +104,68 @@ public class NPCInteraction : MonoBehaviour
         {
             HandleGiftSequence();
         }
-    }
 
-    void StartDialogue()
-    {
-        inDialogue = true;
-        pressFPopup.SetActive(false);
-
-        playerMovement.canMove = false;
-        SetPlayerVisible(false);
-
-        Transform npcParent = npcCamera.transform.parent;
-        transitionTargetPos = npcParent.TransformPoint(npcCameraLocalPos);
-        transitionTargetRot = npcParent.rotation * npcCameraLocalRot;
-
-        transitionStartPos = mcCamera.transform.position;
-        transitionStartRot = mcCamera.transform.rotation;
-
-        npcCamera.transform.position = transitionStartPos;
-        npcCamera.transform.rotation = transitionStartRot;
-        npcCamera.gameObject.SetActive(true);
-        mcCamera.gameObject.SetActive(false);
-
-        transitionProgress = 0f;
-        transitioning = true;
-
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
-
-        UpdateAffinityUI();
-    }
-
-    void EndDialogue()
-    {
-        dialoguePanel.SetActive(false);
-        giftSelectionPanel.SetActive(false);
-
-        transitionStartPos = npcCamera.transform.position;
-        transitionStartRot = npcCamera.transform.rotation;
-        transitionTargetPos = mcCamera.transform.position;
-        transitionTargetRot = mcCamera.transform.rotation;
-
-        transitionProgress = 0f;
-        transitioning = true;
-
-        playerMovement.canMove = true;
-        SetPlayerVisible(true);
-
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
-
-        inDialogue = false;
-        givingGift = false;
-    }
-
-    void CameraTransition()
-    {
-        transitionProgress += Time.deltaTime * cameraTransitionSpeed;
-
-        npcCamera.transform.position = Vector3.Lerp(transitionStartPos, transitionTargetPos, transitionProgress);
-        npcCamera.transform.rotation = Quaternion.Slerp(transitionStartRot, transitionTargetRot, transitionProgress);
-
-        if (transitionProgress >= 1f)
+        // Handle gift selection input (1,2,3)
+        if (giftSelectionPanel != null && giftSelectionPanel.activeSelf)
         {
-            transitioning = false;
-
-            if (inDialogue)
+            if (Input.GetKeyDown(KeyCode.Alpha1))
+                TryGiveGift(GiftType.Rose);
+            else if (Input.GetKeyDown(KeyCode.Alpha2))
+                TryGiveGift(GiftType.Chocolate);
+            else if (Input.GetKeyDown(KeyCode.Alpha3))
+                TryGiveGift(GiftType.Sundae);
+            else if (Input.GetKeyDown(KeyCode.Escape))
             {
-                dialoguePanel.SetActive(true);
-            }
-            else
-            {
-                npcCamera.gameObject.SetActive(false);
-                mcCamera.gameObject.SetActive(true);
+                // Kembali ke dialog
+                giftSelectionPanel.SetActive(false);
+                if (dialoguePanel != null)
+                    dialoguePanel.SetActive(true);
             }
         }
     }
 
-    // GIFT SYSTEM FUNCTIONS
     public void OnGiveGift()
     {
         if (givingGift) return;
 
-        giftSelectionPanel.SetActive(true);
-        dialoguePanel.SetActive(false);
-        UpdateGiftUI();
-
-        // Start listening for number key presses
-        StartCoroutine(GiftSelectionInput());
+        if (giftSelectionPanel != null)
+        {
+            giftSelectionPanel.SetActive(true);
+            if (dialoguePanel != null)
+                dialoguePanel.SetActive(false);
+            UpdateGiftUI();
+        }
+        else
+        {
+            Debug.LogError("giftSelectionPanel belum diassign!");
+        }
     }
 
-    System.Collections.IEnumerator GiftSelectionInput()
+    void UpdateGiftUI()
     {
-        bool waitingForInput = true;
+        if (playerInventory == null) return;
 
-        while (waitingForInput && giftSelectionPanel.activeSelf)
-        {
-            if (Input.GetKeyDown(KeyCode.Alpha1))
-            {
-                TryGiveGift(GiftType.Rose);
-                waitingForInput = false;
-            }
-            else if (Input.GetKeyDown(KeyCode.Alpha2))
-            {
-                TryGiveGift(GiftType.Chocolate);
-                waitingForInput = false;
-            }
-            else if (Input.GetKeyDown(KeyCode.Alpha3))
-            {
-                TryGiveGift(GiftType.Sundae);
-                waitingForInput = false;
-            }
-            else if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.E))
-            {
-                giftSelectionPanel.SetActive(false);
-                dialoguePanel.SetActive(true);
-                waitingForInput = false;
-            }
+        if (roseTextUI != null)
+            roseTextUI.text = "Mawar (You have " + playerInventory.roseCount + ")";
 
-            yield return null;
-        }
+        if (chocolateTextUI != null)
+            chocolateTextUI.text = "Coklat (You have " + playerInventory.chocolateCount + ")";
+
+        if (sundaeTextUI != null)
+            sundaeTextUI.text = "Sundae (You have " + playerInventory.sundaeCount + ")";
     }
 
     void TryGiveGift(GiftType type)
     {
+        if (playerInventory == null || npcAffinity == null)
+        {
+            Debug.LogError("PlayerInventory atau NPCAffinity belum diassign!");
+            return;
+        }
+
         if (!playerInventory.HasGift(type))
         {
             Debug.Log("You don't have this gift!");
-            giftSelectionPanel.SetActive(false);
-            dialoguePanel.SetActive(true);
             return;
         }
 
@@ -243,7 +184,6 @@ public class NPCInteraction : MonoBehaviour
 
         // Add affinity points
         npcAffinity.AddPoints(points);
-        UpdateAffinityUI();
 
         // Start gift giving sequence
         StartGiftSequence(type);
@@ -251,7 +191,9 @@ public class NPCInteraction : MonoBehaviour
 
     void StartGiftSequence(GiftType type)
     {
-        giftSelectionPanel.SetActive(false);
+        if (giftSelectionPanel != null)
+            giftSelectionPanel.SetActive(false);
+
         givingGift = true;
         giftTimer = 0f;
 
@@ -264,7 +206,7 @@ public class NPCInteraction : MonoBehaviour
             _ => null
         };
 
-        if (prefab && giftSpawnPoint)
+        if (prefab != null && giftSpawnPoint != null)
         {
             currentGift = Instantiate(prefab, giftSpawnPoint.position, Quaternion.identity);
             currentGift.transform.localScale = Vector3.one * 0.3f;
@@ -278,9 +220,12 @@ public class NPCInteraction : MonoBehaviour
         // Phase 1: NPC looks down (0-0.5 seconds)
         if (giftTimer < 0.5f)
         {
-            Vector3 rot = npcCamera.transform.rotation.eulerAngles;
-            rot.x += 20f * Time.deltaTime; // Look down gradually
-            transform.rotation = Quaternion.Euler(rot);
+            if (npcCamera != null)
+            {
+                Vector3 rot = npcCamera.transform.rotation.eulerAngles;
+                rot.x += 20f * Time.deltaTime; // Look down gradually
+                npcCamera.transform.rotation = Quaternion.Euler(rot);
+            }
         }
         // Phase 2: Wait with gift (0.5-2 seconds)
         else if (giftTimer < 2f)
@@ -290,51 +235,132 @@ public class NPCInteraction : MonoBehaviour
         // Phase 3: Finish sequence (>2 seconds)
         else
         {
-            // Clean up
-            if (currentGift)
+            // Clean up gift
+            if (currentGift != null)
                 Destroy(currentGift);
 
             // Reset NPC rotation
-            transform.rotation = Quaternion.Euler(0, transform.rotation.eulerAngles.y, 0);
+            if (npcCamera != null)
+            {
+                // Reset ke posisi awal kamera NPC
+                Transform npcParent = npcCamera.transform.parent;
+                if (npcParent != null)
+                {
+                    Vector3 targetPos = npcParent.TransformPoint(npcCameraLocalPos);
+                    Quaternion targetRot = npcParent.rotation * npcCameraLocalRot;
+                    npcCamera.transform.position = targetPos;
+                    npcCamera.transform.rotation = targetRot;
+                }
+            }
 
-            // Show thank you message
+            givingGift = false;
             Debug.Log("NPC: Thank you for the gift!");
 
-            // End dialogue
-            EndDialogue();
+            // Kembali ke dialog atau end dialogue
+            OnLeave();
         }
     }
 
-    void UpdateGiftUI()
+    void StartDialogue()
     {
-        if (roseText)
-            roseText.text = "Mawar (You have " + playerInventory.roseCount + ")";
-        if (chocolateText)
-            chocolateText.text = "Coklat (You have " + playerInventory.chocolateCount + ")";
-        if (sundaeText)
-            sundaeText.text = "Sundae (You have " + playerInventory.sundaeCount + ")";
-    }
+        inDialogue = true;
+        if (pressFPopup != null)
+            pressFPopup.SetActive(false);
 
-    void UpdateAffinityUI()
-    {
-        if (affinityText && npcAffinity)
+        if (playerMovement != null)
+            playerMovement.canMove = false;
+
+        SetPlayerVisible(false);
+
+        if (npcCamera != null && mcCamera != null)
         {
-            affinityText.text = "Level " + npcAffinity.affinityLevel +
-                              " (" + npcAffinity.currentPoints + "/" +
-                              GetNextLevelThreshold() + " points)";
+            Transform npcParent = npcCamera.transform.parent;
+            if (npcParent != null)
+            {
+                transitionTargetPos = npcParent.TransformPoint(npcCameraLocalPos);
+                transitionTargetRot = npcParent.rotation * npcCameraLocalRot;
+
+                transitionStartPos = mcCamera.transform.position;
+                transitionStartRot = mcCamera.transform.rotation;
+
+                npcCamera.transform.position = transitionStartPos;
+                npcCamera.transform.rotation = transitionStartRot;
+                npcCamera.gameObject.SetActive(true);
+                mcCamera.gameObject.SetActive(false);
+            }
         }
+
+        transitionProgress = 0f;
+        transitioning = true;
+
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
     }
 
-    int GetNextLevelThreshold()
+    void EndDialogue()
     {
-        if (npcAffinity.affinityLevel >= 4) return 0;
+        if (dialoguePanel != null)
+            dialoguePanel.SetActive(false);
 
-        int[] thresholds = { 100, 250, 500, 1000 };
-        return thresholds[npcAffinity.affinityLevel];
+        if (giftSelectionPanel != null)
+            giftSelectionPanel.SetActive(false);
+
+        if (npcCamera != null && mcCamera != null)
+        {
+            transitionStartPos = npcCamera.transform.position;
+            transitionStartRot = npcCamera.transform.rotation;
+            transitionTargetPos = mcCamera.transform.position;
+            transitionTargetRot = mcCamera.transform.rotation;
+
+            transitionProgress = 0f;
+            transitioning = true;
+        }
+
+        if (playerMovement != null)
+            playerMovement.canMove = true;
+
+        SetPlayerVisible(true);
+
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+
+        inDialogue = false;
+        givingGift = false;
+    }
+
+    void CameraTransition()
+    {
+        if (npcCamera == null) return;
+
+        transitionProgress += Time.deltaTime * cameraTransitionSpeed;
+
+        npcCamera.transform.position = Vector3.Lerp(transitionStartPos, transitionTargetPos, transitionProgress);
+        npcCamera.transform.rotation = Quaternion.Slerp(transitionStartRot, transitionTargetRot, transitionProgress);
+
+        if (transitionProgress >= 1f)
+        {
+            transitioning = false;
+
+            if (inDialogue)
+            {
+                if (dialoguePanel != null)
+                    dialoguePanel.SetActive(true);
+            }
+            else
+            {
+                if (npcCamera != null)
+                    npcCamera.gameObject.SetActive(false);
+
+                if (mcCamera != null)
+                    mcCamera.gameObject.SetActive(true);
+            }
+        }
     }
 
     void SetPlayerVisible(bool visible)
     {
+        if (playerRenderers == null) return;
+
         foreach (Renderer r in playerRenderers)
             r.enabled = visible;
     }
@@ -344,7 +370,8 @@ public class NPCInteraction : MonoBehaviour
         if (other.CompareTag("Player"))
         {
             playerNearby = true;
-            pressFPopup.SetActive(true);
+            if (pressFPopup != null)
+                pressFPopup.SetActive(true);
         }
     }
 
@@ -353,7 +380,8 @@ public class NPCInteraction : MonoBehaviour
         if (other.CompareTag("Player"))
         {
             playerNearby = false;
-            pressFPopup.SetActive(false);
+            if (pressFPopup != null)
+                pressFPopup.SetActive(false);
         }
     }
 
